@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { groupFrequencyBands, loadAudio, shortTimeFourierTransform } from "./audio.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
@@ -16,8 +17,7 @@ const setupCamera = () => {
     const near = 1;
     const far = 10000;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(-5, 5, 5);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(100, 50, 0);
 }
 
 const setupLights = () => { 
@@ -40,15 +40,36 @@ window.onload = async () => {
     setupCamera();
     setupLights();
 
-    let geometry = new THREE.BoxGeometry();
-    let material = new THREE.MeshStandardMaterial();
-    let mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement)
 
     controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 50, 0)
     animate()
+
+    const audioBuffer = await loadAudio();
+    const samples = audioBuffer.getChannelData(0);
+
+    const frameSize = 2048;
+    const hopSize = frameSize * (3 / 4);
+
+    const stft = shortTimeFourierTransform(samples, frameSize, hopSize);
+    const numBands = 128;
+    const groupings = groupFrequencyBands(stft, audioBuffer.sampleRate, numBands);
+
+    for (let i = 0; i < numBands; i++) {
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x00ffcc,
+            emissive: 0x001111,
+            roughness: 0.3,
+            metalness: 0.4
+        });
+        const bar = new THREE.Mesh(geometry, material);
+        bar.position.z = i - numBands / 2;
+        bar.position.y = groupings[0][i] / 2;
+        bar.scale.y = groupings[0][i];
+        scene.add(bar);
+    }
 }
