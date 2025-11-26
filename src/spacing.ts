@@ -7,10 +7,6 @@ class Spacing {
 		this.end = end;
 	}
 
-	contains(num: number): boolean {
-		return this.start <= num && num <= this.end;
-	}
-
 	toString(): string {
 		return `[${this.start.toFixed(2)}, ${this.end.toFixed(2)}]`;
 	}

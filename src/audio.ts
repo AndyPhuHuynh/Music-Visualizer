@@ -75,3 +75,11 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
 
     return grouped;
 }
+
+export const magnitudeToHeight = (magnitude: number, maxHeight: number): number => {
+    const minMagnitude = 1e-4;
+    const minDB = 20 * Math.log10(minMagnitude);
+    let db = 20 * Math.log10(Math.max(magnitude, minMagnitude));
+    const normalized = (db - minDB) / -minDB;
+    return normalized * maxHeight;
+}
