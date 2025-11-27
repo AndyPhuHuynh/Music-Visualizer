@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { groupFrequencyBands, loadAudio, magnitudeToHeight, shortTimeFourierTransform } from "./audio.ts";
+import { groupFrequencyBands, loadAudio, dbToHeight, shortTimeFourierTransform } from "./audio.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
@@ -17,7 +17,7 @@ const setupCamera = () => {
     const near = 1;
     const far = 10000;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(10, 10, 10);
+    camera.position.set(100, 50, 0);
 }
 
 const setupLights = () => { 
@@ -45,7 +45,7 @@ window.onload = async () => {
     document.body.appendChild(renderer.domElement)
 
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0, 0)
+    controls.target.set(0, 50, 0)
     animate()
 
     const audioBuffer = await loadAudio();
@@ -70,8 +70,7 @@ window.onload = async () => {
         const bar = new THREE.Mesh(geometry, material);
         bar.position.x = 0;
         bar.position.z = i - numBands / 2;
-        const height = magnitudeToHeight(groupings[currentGroup][i], 50);
-        console.log(`${i}: ${height}`);
+        const height = dbToHeight(groupings[currentGroup][i], 50);
         bar.position.y = height / 2;
         bar.scale.y = height;
         scene.add(bar);

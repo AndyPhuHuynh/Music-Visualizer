@@ -1,3 +1,5 @@
+import { hzToMel, melToHz } from "./audio.ts";
+
 class Spacing {
 	start: number;
 	end: number;
@@ -10,6 +12,21 @@ class Spacing {
 	toString(): string {
 		return `[${this.start.toFixed(2)}, ${this.end.toFixed(2)}]`;
 	}
+}
+
+export const linearSpacing = (
+	start: number,
+	end: number,
+	numGroups: number
+): Spacing[] => {
+	const groups = new Array<Spacing>(numGroups);
+	const distance = end - start;
+	for (let i = 0; i < numGroups; i++) {
+		const spacingStart = start + distance * (i / numGroups);
+		const spacingEnd   = start + distance * ((i + 1) / numGroups);
+		groups[i] = new Spacing(spacingStart, spacingEnd);
+	}
+	return groups;
 }
 
 export const logisticSpacing = (
@@ -39,5 +56,20 @@ export const logisticSpacing = (
 		spacings[i] = new Spacing(points[i], points[i + 1])
 	}
 
+	return spacings;
+}
+
+export const melSpacing = (
+	start: number,
+	end: number,
+	numGroups: number,
+): Spacing[] => {
+	const melMin = hzToMel(start);
+	const melMax = hzToMel(end);
+	const spacings = linearSpacing(melMin, melMax, numGroups);
+	for (let spacing of spacings) {
+		spacing.start = melToHz(spacing.start);
+		spacing.end = melToHz(spacing.end);
+	}
 	return spacings;
 }

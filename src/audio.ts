@@ -1,8 +1,17 @@
 import { hannWindow } from "./windowing.ts";
 import { FFTR } from "kissfft-js";
-import { logisticSpacing } from "./spacing.ts";
+import {  melSpacing } from "./spacing.ts";
+
+export const magnitudeToDB = (magnitude: number): number => {
+    return 20 * Math.log10(magnitude);
+}
+
+export const hzToMel = (hz: number): number => 2595 * Math.log10(1 + hz / 700);
+export const melToHz = (mel: number): number => 700 * (Math.pow(10, mel / 2595) - 1);
 
 const audioCtx = new AudioContext();
+const MIN_MAGNITUDE = 1e-4;
+const MIN_DB = magnitudeToDB(1e-4);
 
 export const loadAudio = async (): Promise<AudioBuffer> => {
     const response = await fetch(`${import.meta.env.BASE_URL}/music/paper-planes.mp3`)
@@ -33,12 +42,13 @@ export const shortTimeFourierTransform = (
         const coefficients = fft.forward(windowedFrame);
 
         // Calculate magnitudes
-        const magnitudes = new Array<number>(numFrequencyBins).fill(0);
+        const dbs = new Array<number>(numFrequencyBins).fill(0);
         for (let i = 0; i < numFrequencyBins; i ++) {
-            magnitudes[i] = Math.hypot(coefficients[2 * i], coefficients[2 * i + 1]);
+            const magnitude = Math.hypot(coefficients[2 * i], coefficients[2 * i + 1]);
+            dbs[i] = magnitudeToDB(Math.max(magnitude, MIN_MAGNITUDE));
         }
 
-        stft.push(magnitudes);
+        stft.push(dbs);
     }
     return stft;
 }
@@ -54,7 +64,8 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
     const binWidth = sampleRate / fftSize;
     const minFreq = 20;
     const nyquistFreq = sampleRate / 2;
-    const spacings = logisticSpacing(minFreq, nyquistFreq, numBands);
+    const spacings = melSpacing(minFreq, nyquistFreq, numBands);
+    console.log("Spacings:", spacings);
 
     const grouped = Array.from({ length: frameCount }, () => new Array<number>(numBands).fill(0));
     for (let currentFrame = 0; currentFrame < frameCount; currentFrame++) {
@@ -76,10 +87,7 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
     return grouped;
 }
 
-export const magnitudeToHeight = (magnitude: number, maxHeight: number): number => {
-    const minMagnitude = 1e-4;
-    const minDB = 20 * Math.log10(minMagnitude);
-    let db = 20 * Math.log10(Math.max(magnitude, minMagnitude));
-    const normalized = (db - minDB) / -minDB;
+export const dbToHeight = (db: number, maxHeight: number): number => {
+    const normalized = (db - MIN_DB) / -MIN_DB;
     return normalized * maxHeight;
 }
