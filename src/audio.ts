@@ -1,6 +1,6 @@
 import { hannWindow } from "./windowing.ts";
 import { FFTR } from "kissfft-js";
-import {  melSpacing } from "./spacing.ts";
+import { melSpacing } from "./spacing.ts";
 
 export const magnitudeToDB = (magnitude: number): number => {
     return 20 * Math.log10(magnitude);
@@ -10,14 +10,10 @@ export const hzToMel = (hz: number): number => 2595 * Math.log10(1 + hz / 700);
 export const melToHz = (mel: number): number => 700 * (Math.pow(10, mel / 2595) - 1);
 
 const audioCtx = new AudioContext();
+const audioSource = audioCtx.createBufferSource();
+
 const MIN_MAGNITUDE = 1e-4;
 const MIN_DB = magnitudeToDB(1e-4);
-
-export const loadAudio = async (): Promise<AudioBuffer> => {
-    const response = await fetch(`${import.meta.env.BASE_URL}/music/paper-planes.mp3`)
-    const arrayBuffer = await response.arrayBuffer();
-    return await audioCtx.decodeAudioData(arrayBuffer);
-}
 
 export const shortTimeFourierTransform = (
     signal: Float32Array,
@@ -41,7 +37,7 @@ export const shortTimeFourierTransform = (
         }
         const coefficients = fft.forward(windowedFrame);
 
-        // Calculate magnitudes
+        // Calculate dbs
         const dbs = new Array<number>(numFrequencyBins).fill(0);
         for (let i = 0; i < numFrequencyBins; i ++) {
             const magnitude = Math.hypot(coefficients[2 * i], coefficients[2 * i + 1]);
@@ -67,19 +63,20 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
     const spacings = melSpacing(minFreq, nyquistFreq, numBands);
     console.log("Spacings:", spacings);
 
-    const grouped = Array.from({ length: frameCount }, () => new Array<number>(numBands).fill(0));
+    const grouped = Array.from({ length: frameCount }, () => new Array<number>(numBands).fill(MIN_DB));
     for (let currentFrame = 0; currentFrame < frameCount; currentFrame++) {
         let currentBin = 0;
         spacings.forEach((spacing, spacingIndex) =>  {
             let numBinsAdded = 0;
+            let dbSum = 0;
             while (currentBin < numBins && getBinFrequency(currentBin, binWidth) < spacing.start) currentBin++;
             while (currentBin < numBins && getBinFrequency(currentBin, binWidth) < spacing.end) {
-                grouped[currentFrame][spacingIndex] += stft[currentFrame][currentBin];
+                dbSum += stft[currentFrame][currentBin];
                 numBinsAdded++;
                 currentBin++;
             }
             if (numBinsAdded > 0) {
-                grouped[currentFrame][spacingIndex] /= numBinsAdded;
+                grouped[currentFrame][spacingIndex] = dbSum / numBinsAdded;
             }
         })
     }
@@ -90,4 +87,45 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
 export const dbToHeight = (db: number, maxHeight: number): number => {
     const normalized = (db - MIN_DB) / -MIN_DB;
     return normalized * maxHeight;
+}
+
+export interface AudioData {
+    audioBuffer: AudioBuffer;
+
+    frameSize: number;
+    hopSize: number;
+
+    stft: number[][];
+    frequencyBands: number[][];
+}
+
+export const loadAudio = async (): Promise<AudioData> => {
+    const response = await fetch(`${import.meta.env.BASE_URL}/music/megalovania.flac`)
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    const samples = audioBuffer.getChannelData(0);
+    const frameSize = 2 << 12;
+    const hopSize = frameSize * (3 / 4);
+
+    const stft = shortTimeFourierTransform(samples, frameSize, hopSize);
+    const numBands = 128;
+    const groupings = groupFrequencyBands(stft, audioBuffer.sampleRate, numBands);
+
+    return {
+        audioBuffer: audioBuffer,
+
+        frameSize: frameSize,
+        hopSize: hopSize,
+
+        stft: stft,
+        frequencyBands: groupings
+    };
+}
+
+export const playAudio = (audioBuffer: AudioBuffer) => {
+    audioSource.buffer = audioBuffer;
+    audioSource.connect(audioCtx.destination);
+    audioSource.start(0)
+
 }

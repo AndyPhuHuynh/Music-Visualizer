@@ -1,15 +1,19 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { groupFrequencyBands, loadAudio, dbToHeight, shortTimeFourierTransform } from "./audio.ts";
+import { loadAudio, playAudio } from "./audio.ts";
+import { AudioVisualizer } from "./audioVisualizer.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
     ambient: null,
     directional: null
 }
-let scene: any;
+let scene: THREE.Scene;
 let renderer: any;
 let controls: any;
+
+let visualizer: AudioVisualizer;
+let clock = new THREE.Clock();
 
 const setupCamera = () => {
     const fov = 75;
@@ -31,9 +35,15 @@ const setupLights = () => {
 
 const animate = () => {
     requestAnimationFrame(animate);
+
+    const deltaTime = clock.getDelta();
+    visualizer.update(deltaTime);
+
     controls.update();
     renderer.render(scene, camera);
 }
+
+let startButton: HTMLElement | null = null;
 
 window.onload = async () => {
     scene = new THREE.Scene();
@@ -44,35 +54,26 @@ window.onload = async () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement)
 
+    startButton = document.getElementById("start-button");
+    if (startButton === null) {
+        alert("Unable to get start button!");
+        return;
+    }
+    startButton.onclick = () => {
+        startVisualization();
+    }
+
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 50, 0)
-    animate()
+}
 
-    const audioBuffer = await loadAudio();
-    const samples = audioBuffer.getChannelData(0);
-
-    const frameSize = 2048;
-    const hopSize = frameSize * (3 / 4);
-
-    const stft = shortTimeFourierTransform(samples, frameSize, hopSize);
-    const numBands = 128;
-    const groupings = groupFrequencyBands(stft, audioBuffer.sampleRate, numBands);
-
-    const currentGroup = 0;
-    for (let i = 0; i < numBands; i++) {
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x00ffcc,
-            emissive: 0x001111,
-            roughness: 0.3,
-            metalness: 0.4
-        });
-        const bar = new THREE.Mesh(geometry, material);
-        bar.position.x = 0;
-        bar.position.z = i - numBands / 2;
-        const height = dbToHeight(groupings[currentGroup][i], 50);
-        bar.position.y = height / 2;
-        bar.scale.y = height;
-        scene.add(bar);
+const startVisualization = async () => {
+    if (startButton) {
+        startButton.style.display = "none";
     }
+    const audioData = await loadAudio();
+    visualizer = new AudioVisualizer(scene, audioData);
+    visualizer.add();
+    playAudio(audioData.audioBuffer);
+    animate()
 }
