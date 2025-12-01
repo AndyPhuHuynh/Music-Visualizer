@@ -72,7 +72,7 @@ const startVisualization = async () => {
         startButton.style.display = "none";
     }
     const audioData = await loadAudio();
-    visualizer = new AudioVisualizer(scene, audioData);
+    visualizer = new AudioVisualizer(scene, audioData, 100, 100);
     visualizer.add();
     playAudio(audioData.audioBuffer);
     animate()

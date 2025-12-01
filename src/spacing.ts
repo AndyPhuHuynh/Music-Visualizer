@@ -1,6 +1,6 @@
 import { hzToMel, melToHz } from "./audio.ts";
 
-class Spacing {
+export class Spacing {
 	start: number;
 	end: number;
 

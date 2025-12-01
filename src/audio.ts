@@ -1,9 +1,13 @@
 import { hannWindow } from "./windowing.ts";
 import { FFTR } from "kissfft-js";
-import { melSpacing } from "./spacing.ts";
+import { Spacing, melSpacing } from "./spacing.ts";
+import { clamp } from "./utils.ts";
 
-export const magnitudeToDB = (magnitude: number): number => {
-    return 20 * Math.log10(magnitude);
+export type Magnitude = number & { readonly __brand: "Magnitude" };
+export type DB = number & { readonly __brand: "Db" };
+
+export const magnitudeToDB = (magnitude: Magnitude): DB => {
+    return (20 * Math.log10(magnitude)) as DB;
 }
 
 export const hzToMel = (hz: number): number => 2595 * Math.log10(1 + hz / 700);
@@ -12,18 +16,18 @@ export const melToHz = (mel: number): number => 700 * (Math.pow(10, mel / 2595) 
 const audioCtx = new AudioContext();
 const audioSource = audioCtx.createBufferSource();
 
-const MIN_MAGNITUDE = 1e-4;
-const MIN_DB = magnitudeToDB(1e-4);
+const MIN_MAGNITUDE = 1e-4 as Magnitude;
+const MIN_DB = magnitudeToDB(MIN_MAGNITUDE);
 
 export const shortTimeFourierTransform = (
     signal: Float32Array,
     frameSize: number,
     hopSize: number
-): number[][] => {
+): Magnitude[][] => {
     const numFrames: number = Math.ceil((signal.length - frameSize) / hopSize) + 1;
     const numFrequencyBins = frameSize / 2 + 1;
     const fft = new FFTR(frameSize);
-    const stft: number[][] = [];
+    const stft: Magnitude[][] = [];
 
     for (let currentFrame = 0; currentFrame < numFrames; currentFrame++) {
         const frameStart = currentFrame * hopSize;
@@ -37,23 +41,22 @@ export const shortTimeFourierTransform = (
         }
         const coefficients = fft.forward(windowedFrame);
 
-        // Calculate dbs
-        const dbs = new Array<number>(numFrequencyBins).fill(0);
+        // Calculate magnitudes
+        const magnitudes = new Array<Magnitude>(numFrequencyBins).fill(0 as Magnitude);
         for (let i = 0; i < numFrequencyBins; i ++) {
-            const magnitude = Math.hypot(coefficients[2 * i], coefficients[2 * i + 1]);
-            dbs[i] = magnitudeToDB(Math.max(magnitude, MIN_MAGNITUDE));
+            magnitudes[i] = Math.hypot(coefficients[2 * i], coefficients[2 * i + 1]) as Magnitude;
         }
 
-        stft.push(dbs);
+        stft.push(magnitudes);
     }
     return stft;
 }
 
-const getBinFrequency = (binIndex: number, binWidth: number) => {
-    return binIndex * binWidth;
-}
-
-export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBands: number) => {
+export const groupFrequencyBands = (
+    stft: Magnitude[][],
+    sampleRate: number,
+    numBands: number
+) => {
     const frameCount = stft.length;
     const numBins = stft[0].length;
     const fftSize = 2 * (stft[0].length - 1);
@@ -63,20 +66,25 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
     const spacings = melSpacing(minFreq, nyquistFreq, numBands);
     console.log("Spacings:", spacings);
 
-    const grouped = Array.from({ length: frameCount }, () => new Array<number>(numBands).fill(MIN_DB));
+    const bandIndices = spacings.map((spacing: Spacing) => ({
+        startIndex: Math.ceil(spacing.start / binWidth),
+        endIndex: Math.min(numBins, Math.ceil(spacing.end / binWidth)),
+    }));
+    console.log("Bands:", bandIndices);
+
+    const grouped: DB[][] = Array.from({ length: frameCount }, () => new Array<DB>(numBands).fill(MIN_DB));
     for (let currentFrame = 0; currentFrame < frameCount; currentFrame++) {
-        let currentBin = 0;
-        spacings.forEach((spacing, spacingIndex) =>  {
-            let numBinsAdded = 0;
-            let dbSum = 0;
-            while (currentBin < numBins && getBinFrequency(currentBin, binWidth) < spacing.start) currentBin++;
-            while (currentBin < numBins && getBinFrequency(currentBin, binWidth) < spacing.end) {
-                dbSum += stft[currentFrame][currentBin];
-                numBinsAdded++;
-                currentBin++;
+        bandIndices.forEach((band, spacingIndex) => {
+            let sum = 0 as Magnitude;
+            let numBindsAdded = 0;
+            for (let i = band.startIndex; i < band.endIndex; i++) {
+                if (i >= numBins) break;
+                sum = (sum + stft[currentFrame][i]) as Magnitude
+                numBindsAdded++;
             }
-            if (numBinsAdded > 0) {
-                grouped[currentFrame][spacingIndex] = dbSum / numBinsAdded;
+            if (numBindsAdded > 0) {
+                const avgMagnitude = (sum / numBindsAdded) as Magnitude;
+                grouped[currentFrame][spacingIndex] = magnitudeToDB(Math.max(avgMagnitude, MIN_MAGNITUDE) as Magnitude);
             }
         })
     }
@@ -84,9 +92,25 @@ export const groupFrequencyBands = (stft: number[][], sampleRate: number, numBan
     return grouped;
 }
 
-export const dbToHeight = (db: number, maxHeight: number): number => {
-    const normalized = (db - MIN_DB) / -MIN_DB;
-    return normalized * maxHeight;
+const calculateMaxDB = (stft: Magnitude[][]): DB => {
+    let max: DB = -Infinity as DB;
+    for (const row of stft) {
+        for (const val of row) {
+            const db: DB = magnitudeToDB(val);
+            if (db > max) max = db;
+        }
+    }
+    return max;
+};
+
+export const dbToHeight = (db: DB, maxDb: DB, maxHeight: number): number => {
+    const range = maxDb - MIN_DB;
+    const clampedDb = clamp(db, MIN_DB, maxDb);
+    const normalized = (clampedDb - MIN_DB) / range;
+    if (normalized < 0) {
+        console.log(`Normalized: ${normalized}, DB: ${db}`);
+    }
+    return Math.pow(normalized, 3) * maxHeight;
 }
 
 export interface AudioData {
@@ -95,8 +119,9 @@ export interface AudioData {
     frameSize: number;
     hopSize: number;
 
-    stft: number[][];
-    frequencyBands: number[][];
+    stft: Magnitude[][];
+    frequencyBands: DB[][];
+    maxDB: DB;
 }
 
 export const loadAudio = async (): Promise<AudioData> => {
@@ -106,7 +131,7 @@ export const loadAudio = async (): Promise<AudioData> => {
 
     const samples = audioBuffer.getChannelData(0);
     const frameSize = 2 << 12;
-    const hopSize = frameSize * (3 / 4);
+    const hopSize = frameSize * (1 / 4);
 
     const stft = shortTimeFourierTransform(samples, frameSize, hopSize);
     const numBands = 128;
@@ -119,7 +144,8 @@ export const loadAudio = async (): Promise<AudioData> => {
         hopSize: hopSize,
 
         stft: stft,
-        frequencyBands: groupings
+        frequencyBands: groupings,
+        maxDB: calculateMaxDB(stft)
     };
 }
 
@@ -127,5 +153,4 @@ export const playAudio = (audioBuffer: AudioBuffer) => {
     audioSource.buffer = audioBuffer;
     audioSource.connect(audioCtx.destination);
     audioSource.start(0)
-
 }
