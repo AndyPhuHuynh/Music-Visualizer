@@ -48,7 +48,7 @@ export class AudioVisualizer {
 			const bar = this.bars[i];
 			bar.position.x = 0;
 			bar.position.z = (i - this.bars.length / 2) * (this.blockWidth + BAR_SPACING);
-			const height = dbToHeight(this.audio.frequencyBands[this.currentFrame][i], this.audio.maxDB, 50);
+			const height = dbToHeight(this.audio.frequencyBands[this.currentFrame][i], this.audio.localMaxes[i], 50);
 			bar.position.y = height / 2;
 			bar.scale.y = height;
 			this.scene.add(bar);
@@ -70,20 +70,6 @@ export class AudioVisualizer {
 			bar.scale.y = 1;
 			this.scene.add(bar);
 		}
-
-		const geometry = new THREE.BoxGeometry(1, 1, 1);
-		const material = new THREE.MeshStandardMaterial({
-			color: 0xffffff,
-			emissive: 0x001111,
-			roughness: 0.3,
-			metalness: 0.4
-		});
-		const bar = new THREE.Mesh(geometry, material);
-		bar.position.z = this.audio.frequencyBands[0].length/2 + 1;
-		const height = this.height;
-		bar.position.y = height / 2;
-		bar.scale.y = height;
-		this.scene.add(bar);
 	}
 
 	update(deltaTime: number) {
@@ -101,7 +87,7 @@ export class AudioVisualizer {
 				this.audio.frequencyBands[this.currentFrame + 1][i],
 				this.timer / this.frameLength) as DB;
 
-			const targetHeight = dbToHeight(newDB, this.audio.maxDB, this.height);
+			const targetHeight = dbToHeight(newDB, this.audio.localMaxes[i], this.height);
 			bar.scale.y = targetHeight;
 			bar.position.y = targetHeight / 2;
 
@@ -110,7 +96,6 @@ export class AudioVisualizer {
 			if (targetHeight >= currentPeakHeight) {
 				newPeakHeight = targetHeight;
 			} else {
-				// newPeakHeight = DECAY_MULTIPLIER * currentPeakHeight * (1 - DECAY_FACTOR);
 				newPeakHeight = 0.99 * currentPeakHeight;
 			}
 			this.peak[i].scale.y = newPeakHeight;

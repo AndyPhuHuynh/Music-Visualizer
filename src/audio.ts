@@ -92,7 +92,7 @@ export const groupFrequencyBands = (
     return grouped;
 }
 
-const calculateMaxDB = (stft: Magnitude[][]): DB => {
+const calculateGlobalMaxDB = (stft: Magnitude[][]): DB => {
     let max: DB = -Infinity as DB;
     for (const row of stft) {
         for (const val of row) {
@@ -103,6 +103,24 @@ const calculateMaxDB = (stft: Magnitude[][]): DB => {
     return max;
 };
 
+const calculateLocalMaxDB = (stft: Magnitude[][]): DB[] => {
+    let max: DB[] = new Array<DB>(stft.length).fill(-Infinity as DB);
+    const searchWidth = 50;
+    for (let frame = 0; frame < stft.length; frame++) {
+        let localMax = -Infinity as DB;
+        for (let searchFrame = frame - searchWidth / 2; searchFrame < frame + searchWidth / 2; searchFrame++) {
+            if (searchFrame < 0) continue;
+            if (searchFrame >= stft.length) continue;
+
+            let frameMaxMag = Math.max(...stft[searchFrame]) as Magnitude;
+            let frameMaxDb = magnitudeToDB(frameMaxMag);
+            if (frameMaxDb > localMax) localMax = frameMaxDb;
+        }
+        max[frame] = localMax;
+    }
+    return max;
+}
+
 export const dbToHeight = (db: DB, maxDb: DB, maxHeight: number): number => {
     const range = maxDb - MIN_DB;
     const clampedDb = clamp(db, MIN_DB, maxDb);
@@ -110,7 +128,7 @@ export const dbToHeight = (db: DB, maxDb: DB, maxHeight: number): number => {
     if (normalized < 0) {
         console.log(`Normalized: ${normalized}, DB: ${db}`);
     }
-    return Math.pow(normalized, 3) * maxHeight;
+    return Math.pow(normalized, 5) * maxHeight;
 }
 
 export interface AudioData {
@@ -121,7 +139,8 @@ export interface AudioData {
 
     stft: Magnitude[][];
     frequencyBands: DB[][];
-    maxDB: DB;
+    globalMaxDB: DB;
+    localMaxes: DB[];
 }
 
 export const loadAudio = async (): Promise<AudioData> => {
@@ -145,7 +164,8 @@ export const loadAudio = async (): Promise<AudioData> => {
 
         stft: stft,
         frequencyBands: groupings,
-        maxDB: calculateMaxDB(stft)
+        globalMaxDB: calculateGlobalMaxDB(stft),
+        localMaxes: calculateLocalMaxDB(stft)
     };
 }
 
