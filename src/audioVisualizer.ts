@@ -2,9 +2,8 @@ import * as THREE from "three";
 import type { AudioData } from "./audio.ts";
 import { type DB, dbToHeight } from "./audio.ts";
 import { lerp } from "./interpolation.ts";
+import { gradientHSV, type HSV, hsvToThreeColor } from "./color.ts";
 
-const LIGHT_BLUE = 0x48cae4;
-const DARK_BLUE = 0x0077b6;
 const BAR_SPACING = 0.5;
 
 export class AudioVisualizer {
@@ -14,6 +13,11 @@ export class AudioVisualizer {
 	audio: AudioData;
 	currentFrame: number = 0;
 
+	leftHSV: HSV;
+	rightHSV: HSV;
+	baseMainHSV: HSV[];
+	baseBackgroundHSV: HSV[];
+
 	private timer: number = 0;
 	private readonly frameLength: number = 0;
 	private readonly numBands: number;
@@ -22,24 +26,39 @@ export class AudioVisualizer {
 	private readonly height: number;
 	private readonly blockWidth: number;
 
-	constructor(scene: THREE.Scene, audioData: AudioData, width: number, height: number) {
+	constructor(scene: THREE.Scene, audioData: AudioData, width: number, height: number, leftHSV: HSV, rightHSV: HSV) {
 		this.scene = scene;
 		this.audio = audioData;
 		this.numBands = this.audio.frequencyBands[0].length;
-		this.bars = new Array<THREE.Mesh>(this.numBands);
-		this.peak = new Array<THREE.Mesh>(this.numBands);
+		this.bars = new Array<THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>>(this.numBands);
+		this.peak = new Array<THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>>(this.numBands);
 		this.frameLength = this.audio.hopSize / this.audio.audioBuffer.sampleRate;
 
 		this.width = width;
 		this.height = height;
 		this.blockWidth = this.width / this.numBands;
+
+		this.leftHSV = leftHSV;
+		this.rightHSV = rightHSV;
+
+		this.baseMainHSV = new Array(this.numBands);
+		this.baseBackgroundHSV = new Array(this.numBands);
+		for (let i = 0; i < this.numBands; i++) {
+			this.baseMainHSV[i] = gradientHSV(this.leftHSV, this.rightHSV, i / (this.numBands - 1), 1);
+			this.baseBackgroundHSV[i] = {
+				h: this.baseMainHSV[i].h,
+				s: this.baseMainHSV[i].s * 0.6,
+				v: this.baseMainHSV[i].v * 0.8,
+			}
+		}
 	}
 
 	add() {
+		// Main bars
 		for (let i = 0; i < this.numBands; i++) {
 			const geometry = new THREE.BoxGeometry(1, 1, 1);
 			const material = new THREE.MeshStandardMaterial({
-				color: LIGHT_BLUE,
+				color: hsvToThreeColor(this.baseMainHSV[i]),
 				emissive: 0x001111,
 				roughness: 0.3,
 				metalness: 0.4
@@ -54,13 +73,21 @@ export class AudioVisualizer {
 			this.scene.add(bar);
 		}
 
+		// Peak bars
 		for (let i = 0; i < this.numBands; i++) {
+			const emissiveColor = hsvToThreeColor({
+				...this.baseBackgroundHSV[i],
+				v: 0.15
+			});
+
 			const geometry = new THREE.BoxGeometry(1, 1, 1);
 			const material = new THREE.MeshStandardMaterial({
-				color: DARK_BLUE,
-				emissive: 0x001111,
+				color: hsvToThreeColor(this.baseBackgroundHSV[i]),
+				emissive: emissiveColor,
 				roughness: 0.3,
-				metalness: 0.4
+				metalness: 0.4,
+				opacity: 0.8,
+				transparent: true
 			});
 			this.peak[i] = new THREE.Mesh(geometry, material);
 			const bar = this.peak[i];
@@ -100,6 +127,11 @@ export class AudioVisualizer {
 			}
 			this.peak[i].scale.y = newPeakHeight;
 			this.peak[i].position.y = newPeakHeight / 2;
+			let material = this.peak[i].material as THREE.MeshStandardMaterial;
+			material.color.copy(hsvToThreeColor({
+				...this.baseBackgroundHSV[i],
+				v: this.baseBackgroundHSV[i].v * (newPeakHeight / this.height)
+			}));
 		})
 	}
 }

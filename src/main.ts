@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { loadAudio, playAudio } from "./audio.ts";
 import { AudioVisualizer } from "./audioVisualizer.ts";
 import { StarField } from "./stars.ts";
+import {type HSV, threeColorToHSV} from "./color.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
@@ -77,7 +78,10 @@ const startVisualization = async () => {
         startButton.style.display = "none";
     }
     const audioData = await loadAudio();
-    visualizer = new AudioVisualizer(scene, audioData, 100, 100);
+    const leftColor: HSV = threeColorToHSV(new THREE.Color(0x40DE35));
+    const rightColor: HSV = threeColorToHSV(new THREE.Color(0x35DED8));
+
+    visualizer = new AudioVisualizer(scene, audioData, 100, 100, leftColor, rightColor);
     visualizer.add();
     playAudio(audioData.audioBuffer);
     animate()
