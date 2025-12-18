@@ -121,6 +121,26 @@ const calculateLocalMaxDB = (stft: Magnitude[][]): DB[] => {
     return max;
 }
 
+const calculateAdaptiveMaxDB = (stft: Magnitude[][], smoothing: number = 0.95): DB[] => {
+    let runningMax: DB = -Infinity as DB;
+    const maxes = new Array<DB>(stft.length);
+
+    for (let frame = 0; frame < stft.length; frame++) {
+        const frameMax = magnitudeToDB(Math.max(...stft[frame]) as Magnitude);
+
+        // Fast attack, slow decay
+        if (frameMax > runningMax) {
+            runningMax = frameMax; // Instant attack
+        } else {
+            runningMax = (smoothing * runningMax + (1 - smoothing) * frameMax) as DB; // Slow decay
+        }
+
+        maxes[frame] = runningMax;
+    }
+
+    return maxes;
+}
+
 export const dbToHeight = (db: DB, maxDb: DB, maxHeight: number): number => {
     const range = maxDb - MIN_DB;
     const clampedDb = clamp(db, MIN_DB, maxDb);
@@ -149,7 +169,7 @@ export const loadAudio = async (): Promise<AudioData> => {
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
     const samples = audioBuffer.getChannelData(0);
-    const frameSize = 2 << 12;
+    const frameSize = 1 << 12;
     const hopSize = frameSize * (1 / 4);
 
     const stft = shortTimeFourierTransform(samples, frameSize, hopSize);

@@ -48,7 +48,7 @@ export class AudioVisualizer {
 			const bar = this.bars[i];
 			bar.position.x = 0;
 			bar.position.z = (i - this.bars.length / 2) * (this.blockWidth + BAR_SPACING);
-			const height = dbToHeight(this.audio.frequencyBands[this.currentFrame][i], this.audio.localMaxes[i], 50);
+			const height = dbToHeight(this.audio.frequencyBands[this.currentFrame][i], this.audio.globalMaxDB, 50);
 			bar.position.y = height / 2;
 			bar.scale.y = height;
 			this.scene.add(bar);
@@ -87,7 +87,7 @@ export class AudioVisualizer {
 				this.audio.frequencyBands[this.currentFrame + 1][i],
 				this.timer / this.frameLength) as DB;
 
-			const targetHeight = dbToHeight(newDB, this.audio.localMaxes[i], this.height);
+			const targetHeight = dbToHeight(newDB, this.audio.globalMaxDB, this.height);
 			bar.scale.y = targetHeight;
 			bar.position.y = targetHeight / 2;
 

@@ -2,6 +2,7 @@ import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { loadAudio, playAudio } from "./audio.ts";
 import { AudioVisualizer } from "./audioVisualizer.ts";
+import { StarField } from "./stars.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
@@ -13,6 +14,7 @@ let renderer: any;
 let controls: any;
 
 let visualizer: AudioVisualizer;
+let starField: StarField;
 let clock = new THREE.Clock();
 
 const setupCamera = () => {
@@ -38,6 +40,7 @@ const animate = () => {
 
     const deltaTime = clock.getDelta();
     visualizer.update(deltaTime);
+    starField.animate();
 
     controls.update();
     renderer.render(scene, camera);
@@ -65,6 +68,8 @@ window.onload = async () => {
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 50, 0)
+
+    starField = new StarField(scene, 5000);
 }
 
 const startVisualization = async () => {
