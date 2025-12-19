@@ -1,15 +1,22 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" type="text/css" href="src/styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Music Visualizer</title>
-  </head>
-  <body>
-    <script type="module" src="/src/main.ts"></script>
-    <div id="app">
-      <button id="start-button">Start</button>
-    </div>
-  </body>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" type="text/css" href="src/styles.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Music Visualizer</title>
+    </head>
+    <body>
+        <script type="module" src="/src/main.ts"></script>
+        <div id="ui-overlay">
+            <div id="panel">
+                <div id="panel-content">
+                    <input id="file-input" type="file" accept="audio/*">
+                    <button id="start-button">Start Visualization</button>
+                </div>
+            </div>
+        </div>
+        <div id="app">
+        </div>
+    </body>
 </html>

@@ -121,26 +121,6 @@ const calculateLocalMaxDB = (stft: Magnitude[][]): DB[] => {
     return max;
 }
 
-const calculateAdaptiveMaxDB = (stft: Magnitude[][], smoothing: number = 0.95): DB[] => {
-    let runningMax: DB = -Infinity as DB;
-    const maxes = new Array<DB>(stft.length);
-
-    for (let frame = 0; frame < stft.length; frame++) {
-        const frameMax = magnitudeToDB(Math.max(...stft[frame]) as Magnitude);
-
-        // Fast attack, slow decay
-        if (frameMax > runningMax) {
-            runningMax = frameMax; // Instant attack
-        } else {
-            runningMax = (smoothing * runningMax + (1 - smoothing) * frameMax) as DB; // Slow decay
-        }
-
-        maxes[frame] = runningMax;
-    }
-
-    return maxes;
-}
-
 export const dbToHeight = (db: DB, maxDb: DB, maxHeight: number): number => {
     const range = maxDb - MIN_DB;
     const clampedDb = clamp(db, MIN_DB, maxDb);
@@ -163,9 +143,7 @@ export interface AudioData {
     localMaxes: DB[];
 }
 
-export const loadAudio = async (): Promise<AudioData> => {
-    const response = await fetch(`${import.meta.env.BASE_URL}/music/megalovania.flac`)
-    const arrayBuffer = await response.arrayBuffer();
+const loadAudioDataFromBuffer = async (arrayBuffer: ArrayBuffer): Promise<AudioData> => {
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
     const samples = audioBuffer.getChannelData(0);
@@ -187,6 +165,11 @@ export const loadAudio = async (): Promise<AudioData> => {
         globalMaxDB: calculateGlobalMaxDB(stft),
         localMaxes: calculateLocalMaxDB(stft)
     };
+}
+
+export const loadAudioDataFromFileObject = async (file: File): Promise<AudioData> => {
+    const arrayBuffer = await file.arrayBuffer();
+    return loadAudioDataFromBuffer(arrayBuffer);
 }
 
 export const playAudio = (audioBuffer: AudioBuffer) => {
