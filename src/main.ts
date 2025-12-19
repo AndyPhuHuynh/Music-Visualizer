@@ -1,9 +1,10 @@
-import * as THREE from "three"
+import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { loadAudio, playAudio } from "./audio.ts";
 import { AudioVisualizer } from "./audioVisualizer.ts";
+import { Tweakpane } from "./tweakpane.ts";
 import { StarField } from "./stars.ts";
-import {type HSV, threeColorToHSV} from "./color.ts";
+import { numberToHSV } from "./color.ts";
 
 let camera: any;
 let lights: { ambient: any, directional: any } = {
@@ -13,6 +14,7 @@ let lights: { ambient: any, directional: any } = {
 let scene: THREE.Scene;
 let renderer: any;
 let controls: any;
+let pane: Tweakpane;
 
 let visualizer: AudioVisualizer;
 let starField: StarField;
@@ -54,9 +56,11 @@ window.onload = async () => {
     setupCamera();
     setupLights();
 
+    const app = document.getElementById("app")!;
+
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement)
+    app.appendChild(renderer.domElement)
 
     startButton = document.getElementById("start-button");
     if (startButton === null) {
@@ -66,6 +70,20 @@ window.onload = async () => {
     startButton.onclick = () => {
         startVisualization();
     }
+
+    pane = new Tweakpane();
+    pane.leftColorBinding.on("change", (ev) => {
+        if (visualizer) {
+            const leftColor = numberToHSV(ev.value as number);
+            visualizer.changeColors(leftColor, visualizer.getRightHSV());
+        }
+    })
+    pane.rightColorBinding.on("change", (ev) => {
+        if (visualizer) {
+            const rightColor = numberToHSV(ev.value as number);
+            visualizer.changeColors(visualizer.getLeftHSV(), rightColor);
+        }
+    })
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 50, 0)
@@ -78,11 +96,9 @@ const startVisualization = async () => {
         startButton.style.display = "none";
     }
     const audioData = await loadAudio();
-    const leftColor: HSV = threeColorToHSV(new THREE.Color(0x40DE35));
-    const rightColor: HSV = threeColorToHSV(new THREE.Color(0x35DED8));
-
-    visualizer = new AudioVisualizer(scene, audioData, 100, 100, leftColor, rightColor);
-    visualizer.add();
+    visualizer = new AudioVisualizer(scene, audioData, 100, 100,
+        numberToHSV(pane.settings.leftColor),
+        numberToHSV(pane.settings.rightColor));
     playAudio(audioData.audioBuffer);
     animate()
 }

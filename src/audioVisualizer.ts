@@ -13,10 +13,10 @@ export class AudioVisualizer {
 	audio: AudioData;
 	currentFrame: number = 0;
 
-	leftHSV: HSV;
-	rightHSV: HSV;
-	baseMainHSV: HSV[];
-	baseBackgroundHSV: HSV[];
+	private leftHSV: HSV;
+	private rightHSV: HSV;
+	private readonly baseMainHSV: HSV[];
+	private readonly baseBackgroundHSV: HSV[];
 
 	private timer: number = 0;
 	private readonly frameLength: number = 0;
@@ -43,6 +43,24 @@ export class AudioVisualizer {
 
 		this.baseMainHSV = new Array(this.numBands);
 		this.baseBackgroundHSV = new Array(this.numBands);
+		this.initColors(leftHSV, rightHSV);
+		this.initMeshes();
+	}
+
+	getLeftHSV(): HSV { return this.leftHSV; }
+	getRightHSV(): HSV { return this.rightHSV; }
+
+	changeColors(leftColor: HSV, rightColor: HSV) {
+		this.initColors(leftColor, rightColor);
+		for (let i = 0; i < this.numBands; i++) {
+			let mat = this.bars[i].material as THREE.MeshStandardMaterial;
+			mat.color.copy(hsvToThreeColor(this.baseMainHSV[i]));
+		}
+	}
+
+	private initColors(leftColor: HSV, rightColor: HSV): void {
+		this.leftHSV = leftColor;
+		this.rightHSV = rightColor;
 		for (let i = 0; i < this.numBands; i++) {
 			this.baseMainHSV[i] = gradientHSV(this.leftHSV, this.rightHSV, i / (this.numBands - 1), 1);
 			this.baseBackgroundHSV[i] = {
@@ -53,7 +71,7 @@ export class AudioVisualizer {
 		}
 	}
 
-	add() {
+	private initMeshes(): void {
 		// Main bars
 		for (let i = 0; i < this.numBands; i++) {
 			const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -66,7 +84,7 @@ export class AudioVisualizer {
 			this.bars[i] = new THREE.Mesh(geometry, material);
 			const bar = this.bars[i];
 			bar.position.x = 0;
-			bar.position.z = (i - this.bars.length / 2) * (this.blockWidth + BAR_SPACING);
+			bar.position.z = (this.bars.length / 2 - i) * (this.blockWidth + BAR_SPACING);
 			const height = dbToHeight(this.audio.frequencyBands[this.currentFrame][i], this.audio.globalMaxDB, 50);
 			bar.position.y = height / 2;
 			bar.scale.y = height;
@@ -92,7 +110,7 @@ export class AudioVisualizer {
 			this.peak[i] = new THREE.Mesh(geometry, material);
 			const bar = this.peak[i];
 			bar.position.x = -1;
-			bar.position.z = (i - this.bars.length / 2) * (this.blockWidth + BAR_SPACING);
+			bar.position.z = (this.bars.length / 2 - i) * (this.blockWidth + BAR_SPACING);
 			bar.position.y = 0.5;
 			bar.scale.y = 1;
 			this.scene.add(bar);

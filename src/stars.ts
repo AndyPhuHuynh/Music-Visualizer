@@ -23,7 +23,6 @@ export class StarField {
 
 		this.stars = new THREE.Points(geometry, material);
 		this.scene.add(this.stars);
-		console.log("Added stars");
 	}
 
 	animate() {

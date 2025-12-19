@@ -28,6 +28,10 @@ export const hsvToThreeColor = (color: HSV): THREE.Color => {
     );
 }
 
+export const numberToHSV = (hex: number): HSV => {
+    return threeColorToHSV(new THREE.Color(hex));
+}
+
 export const threeColorToHSV = (color: THREE.Color): HSV => {
     const r = color.r;
     const g = color.g;
