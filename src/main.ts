@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { loadAudioDataFromFileObject, playAudio } from "./audio.ts";
+import { type AudioSource, loadAudioSource, playAudio } from "./audio.ts";
 import { AudioVisualizer } from "./audioVisualizer.ts";
 import { Tweakpane } from "./tweakpane.ts";
 import { StarField } from "./stars.ts";
@@ -82,9 +82,23 @@ const animate = () => {
     renderer.render(scene, camera);
 }
 
-let panel: HTMLElement;
-let fileInput: HTMLInputElement;
-let startButton: HTMLButtonElement;
+const panel:           HTMLElement       = document.getElementById("panel")!;
+const uploadSelected:  HTMLInputElement  = document.getElementById("source-select-upload")! as HTMLInputElement;
+const uploadContainer: HTMLElement       = document.getElementById("upload-container")!;
+const presetContainer: HTMLElement       = document.getElementById("preset-container")!;
+const fileInput:       HTMLInputElement  = document.getElementById("file-input")! as HTMLInputElement;
+const presetSelection: HTMLSelectElement = document.getElementById("preset-select")! as HTMLSelectElement;
+const startButton:     HTMLButtonElement = document.getElementById("start-button") as HTMLButtonElement;
+const sourceRadios = document.querySelectorAll<HTMLInputElement>("input[name='audio-source']")
+
+sourceRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+        const isUpload = radio.value == "upload" && radio.checked;
+            uploadContainer.classList.toggle("hidden", !isUpload);
+            presetContainer.classList.toggle("hidden", isUpload);
+    })
+})
+
 
 const onWindowLoad = async () => {
     scene = new THREE.Scene();
@@ -97,32 +111,13 @@ const onWindowLoad = async () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     app.appendChild(renderer.domElement)
 
-    const maybePanel = document.getElementById("panel");
-    if (!maybePanel) {
-        alert("Error: panel does not exist");
-        return;
-    }
-    panel = maybePanel;
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 50, 0)
 
-    const maybeInput = document.getElementById("file-input");
-    if (!maybeInput) {
-        alert("Error: file-input does not exist")
-        return;
-    }
-    fileInput = maybeInput as HTMLInputElement;
-
-    const maybeStartButton = document.getElementById("start-button");
-    if (!maybeStartButton) {
-        alert("Error: start-button does not exist")
-        return;
-    }
-    startButton = maybeStartButton as HTMLButtonElement;
     startButton.onclick = () => {
         startVisualization();
     }
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 50, 0)
 
     starField = new StarField(scene, 5000);
     animate();
@@ -131,18 +126,36 @@ const onWindowLoad = async () => {
 window.onload = onWindowLoad;
 window.onresize = onWindowResize;
 
+
+
 const startVisualization = async () => {
-    if (!fileInput?.files?.length) {
-        console.log("No file selected");
-        return;
+    let audio: AudioSource;
+
+    if (uploadSelected.checked) {
+        if (!fileInput?.files?.length) {
+            alert("Please upload an audio file or choose to select a preset!");
+            return;
+        }
+        audio = {
+            type: "file",
+            file: fileInput.files[0],
+        }
+    } else {
+        const url = presetSelection.value;
+        if (url === "") {
+            alert("Please select a preset or choose to upload an audio file!");
+            return;
+        }
+        audio = {
+            type: "preset",
+            url: url
+        }
     }
 
     if (panel) {
         panel.style.display = "none";
     }
-
-    const file = fileInput.files[0];
-    const audioData = await loadAudioDataFromFileObject(file);
+    const audioData = await loadAudioSource(audio);
     visualizer = new AudioVisualizer(scene, audioData, 100, 100,
         numberToHSV(pane.settings.leftColor),
         numberToHSV(pane.settings.rightColor));

@@ -11,7 +11,30 @@
         <div id="ui-overlay">
             <div id="panel">
                 <div id="panel-content">
-                    <input id="file-input" type="file" accept="audio/*">
+                    <div id="panel-title">Music Visualizer</div>
+                    <div class="source-select">
+                        <label>
+                            <input type="radio" id="source-select-upload" name="audio-source" value="upload" checked/>
+                            Upload Song
+                        </label>
+                        <label>
+                            <input type="radio" id="source-select-preset" name="audio-source" value="preset"/>
+                            Preset Song
+                        </label>
+                    </div>
+
+                    <div id="upload-container">
+                        <input id="file-input" type="file" accept="audio/*">
+                    </div>
+
+                    <div id="preset-container" class="hidden">
+                        <label for="preset-select" class="hidden"></label>
+                        <select id="preset-select">
+                            <option value="">Select a preset</option>
+                            <option value="music/megalovania.flac">Megalovania</option>
+                        </select>
+                    </div>
+
                     <button id="start-button">Start Visualization</button>
                 </div>
             </div>

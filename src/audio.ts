@@ -64,13 +64,11 @@ export const groupFrequencyBands = (
     const minFreq = 20;
     const nyquistFreq = sampleRate / 2;
     const spacings = melSpacing(minFreq, nyquistFreq, numBands);
-    console.log("Spacings:", spacings);
 
     const bandIndices = spacings.map((spacing: Spacing) => ({
         startIndex: Math.ceil(spacing.start / binWidth),
         endIndex: Math.min(numBins, Math.ceil(spacing.end / binWidth)),
     }));
-    console.log("Bands:", bandIndices);
 
     const grouped: DB[][] = Array.from({ length: frameCount }, () => new Array<DB>(numBands).fill(MIN_DB));
     for (let currentFrame = 0; currentFrame < frameCount; currentFrame++) {
@@ -143,6 +141,11 @@ export interface AudioData {
     localMaxes: DB[];
 }
 
+export type AudioSource =
+    | { type: "file", file: File }
+    | { type: "preset", url: string };
+
+
 const loadAudioDataFromBuffer = async (arrayBuffer: ArrayBuffer): Promise<AudioData> => {
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
@@ -167,9 +170,22 @@ const loadAudioDataFromBuffer = async (arrayBuffer: ArrayBuffer): Promise<AudioD
     };
 }
 
-export const loadAudioDataFromFileObject = async (file: File): Promise<AudioData> => {
+const loadAudioDataFromFileObject = async (file: File): Promise<AudioData> => {
     const arrayBuffer = await file.arrayBuffer();
     return loadAudioDataFromBuffer(arrayBuffer);
+}
+
+const loadAudioDataFromUrl = async (url: string): Promise<AudioData> => {
+    const response = await fetch(`${import.meta.env.BASE_URL}/${url}`)
+    const arrayBuffer = await response.arrayBuffer();
+    return loadAudioDataFromBuffer(arrayBuffer);
+}
+
+export const loadAudioSource = async (audio: AudioSource): Promise<AudioData> => {
+    if (audio.type == "file") {
+        return loadAudioDataFromFileObject(audio.file)
+    }
+    return loadAudioDataFromUrl(audio.url);
 }
 
 export const playAudio = (audioBuffer: AudioBuffer) => {

@@ -27,10 +27,11 @@ html, body {
     min-height: 240px;
 
     background: rgba(0, 0, 0, 0.5);
-    border: 1px solid white;
     backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
 
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 14px;
 }
 
 #panel-content {
@@ -40,6 +41,82 @@ html, body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    gap: 20px;
 
     color: white
+}
+
+.source-select {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.source-select label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+}
+
+.source-select label:hover {
+    opacity: 1;
+}
+
+.source-select input[type=radio] {
+    accent-color: white;
+}
+
+.hidden {
+    display: none;
+}
+
+input[type=file],
+select {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+}
+
+select option {
+    background: black;
+    color: white;
+}
+
+#start-button {
+    margin-top: 12px;
+    padding: 10px 22px;
+
+    font-size: 16px;
+    letter-spacing: 1px;
+
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+
+    border: 2px solid white;
+    border-radius: 1000px;
+
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+#start-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+#start-button:active {
+    transform: translateY(0);
+}
+
+#panel-title {
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 24px;
 }
