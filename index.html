@@ -7,7 +7,6 @@
         <title>Music Visualizer</title>
     </head>
     <body>
-        <script type="module" src="/src/main.ts"></script>
         <div id="ui-overlay">
             <div id="panel">
                 <div id="panel-content">
@@ -32,6 +31,8 @@
                         <select id="preset-select">
                             <option value="">Select a preset</option>
                             <option value="music/megalovania.flac">Megalovania</option>
+                            <option value="music/revenge.mp3">Revenge</option>
+                            <option value="music/its-been-so-long.mp3">Its Been So Long</option>
                         </select>
                     </div>
 
@@ -39,6 +40,15 @@
                 </div>
             </div>
         </div>
+        <div id="loading-overlay" class="loading hidden">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <div class="loading-text">Analyzing audio…</div>
+            </div>
+        </div>
+
+        <script type="module" src="/src/main.ts"></script>
+
         <div id="app">
         </div>
     </body>

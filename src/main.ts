@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { type AudioSource, loadAudioSource, playAudio } from "./audio.ts";
+import { type AudioSource, loadAudioSource, playAudio } from "./audioLoading.ts";
 import { AudioVisualizer } from "./audioVisualizer.ts";
 import { Tweakpane } from "./tweakpane.ts";
 import { StarField } from "./stars.ts";
@@ -89,6 +89,7 @@ const presetContainer: HTMLElement       = document.getElementById("preset-conta
 const fileInput:       HTMLInputElement  = document.getElementById("file-input")! as HTMLInputElement;
 const presetSelection: HTMLSelectElement = document.getElementById("preset-select")! as HTMLSelectElement;
 const startButton:     HTMLButtonElement = document.getElementById("start-button") as HTMLButtonElement;
+const loadingOverlay:  HTMLElement       = document.getElementById("loading-overlay")!;
 const sourceRadios = document.querySelectorAll<HTMLInputElement>("input[name='audio-source']")
 
 sourceRadios.forEach(radio => {
@@ -126,7 +127,13 @@ const onWindowLoad = async () => {
 window.onload = onWindowLoad;
 window.onresize = onWindowResize;
 
+const showPanel = (show: boolean): void => {
+    panel.classList.toggle("hidden", !show);
+}
 
+const showLoading = (show: boolean): void => {
+    loadingOverlay.classList.toggle("hidden", !show);
+}
 
 const startVisualization = async () => {
     let audio: AudioSource;
@@ -152,12 +159,19 @@ const startVisualization = async () => {
         }
     }
 
-    if (panel) {
-        panel.style.display = "none";
+    showPanel(false);
+    showLoading(true);
+    try {
+        const audioData = await loadAudioSource(audio);
+        showLoading(false);
+        visualizer = new AudioVisualizer(scene, audioData, 100, 100,
+            numberToHSV(pane.settings.leftColor),
+            numberToHSV(pane.settings.rightColor));
+        await playAudio(audioData.audioBuffer);
+    } catch (error) {
+        showLoading(false);
+        showPanel(true);
+        alert(`Failed to load audio file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(error);
     }
-    const audioData = await loadAudioSource(audio);
-    visualizer = new AudioVisualizer(scene, audioData, 100, 100,
-        numberToHSV(pane.settings.leftColor),
-        numberToHSV(pane.settings.rightColor));
-    playAudio(audioData.audioBuffer);
 }

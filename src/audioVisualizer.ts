@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { AudioData } from "./audio.ts";
-import { type DB, dbToHeight } from "./audio.ts";
+import type { AudioData } from "./audioAnalysis.ts";
+import { type DB, dbToHeight } from "./audioAnalysis.ts";
 import { lerp } from "./interpolation.ts";
 import { gradientHSV, type HSV, hsvToThreeColor } from "./color.ts";
 
